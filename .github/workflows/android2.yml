@@ -1,0 +1,44 @@
+name: Build Android APK
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. 깃허브 가상 컴퓨터에 안정적인 파이썬 3.11 세팅
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 2. 안드로이드 빌드에 필요한 도구 강제 설치
+      - name: Install Buildozer and Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install buildozer cython
+
+      # 3. 설명서(buildozer.spec)가 없으면 자동으로 만들어주는 단계 추가!
+      - name: Initialize Buildozer Spec if missing
+        run: |
+          if [ ! -f buildozer.spec ]; then
+            buildozer init
+            # 기본 설정 변경 (Pygame 기반으로 설정)
+            sed -i 's/# requirements = python3,kivy/requirements = python3,pygame/g' buildozer.spec
+            sed -i 's/orientation = landscape/orientation = portrait/g' buildozer.spec
+          fi
+
+      # 4. 앱 파일(.apk) 굽기 시작
+      - name: Build APK with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        with:
+          command: buildozer android debug
+          buildozer_version: stable
+
+      # 5. 완성된 파일 업로드
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: backrooms-apk
+          path: ./*.apk
